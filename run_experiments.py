@@ -27,7 +27,7 @@ OUTPUT_CSV = SCRIPT_DIR / "experiment_results.csv"
 
 PROTOCOLS = ["MQTT", "COAP", "AMQP"]
 SECURITIES = ["NONE", "TLS", "MTLS"]
-NODE_COUNTS = [100, 200, 400]  # Reduced node counts for quicker testing; adjust as needed
+NODE_COUNTS = [3, 6, 12]  # Reduced node counts for quicker testing; adjust as needed
 
 METRIC_PATTERNS = {
     "Protocol": re.compile(r"^Protocol:\s*(.*)$"),

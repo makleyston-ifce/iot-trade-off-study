@@ -44,6 +44,9 @@ public:
   void SetTimestamp(Time timestamp);
   Time GetTimestamp() const;
 
+  void SetPayloadSize(uint32_t payloadSize);
+  uint32_t GetPayloadSize() const;
+
   bool IsValid() const;
 
   static TypeId GetTypeId();
@@ -59,6 +62,7 @@ private:
   IoTMessageType m_messageType;
   uint32_t m_sensorId;
   uint32_t m_sequenceNumber;
+  uint32_t m_payloadSize;
   Time m_timestamp;
 };
 

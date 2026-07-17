@@ -22,6 +22,7 @@ public:
   uint64_t GetMessagesReceived() const;
   uint64_t GetMessagesLost() const;
   double GetAverageApplicationDelayMs() const;
+  uint64_t GetTotalApplicationBytesReceived() const;
 
   void HandlePacketTrace(Ptr<const Packet> packet, const Address& from, const Address& localAddress);
 
@@ -34,6 +35,7 @@ private:
   uint64_t m_messagesReceived;
   uint64_t m_messagesLost;
   double m_delaySumMs;
+  uint64_t m_totalApplicationBytesReceived;
 
   struct SensorState {
     uint32_t lastSequenceNumber;

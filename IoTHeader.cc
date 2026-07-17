@@ -15,6 +15,7 @@ IoTHeader::IoTHeader()
     m_messageType(IoTMessageType::DATA),
     m_sensorId(0),
     m_sequenceNumber(0),
+    m_payloadSize(0),
     m_timestamp(Simulator::Now())
 {
 }
@@ -91,6 +92,18 @@ IoTHeader::GetTimestamp() const
   return m_timestamp;
 }
 
+void
+IoTHeader::SetPayloadSize(uint32_t payloadSize)
+{
+  m_payloadSize = payloadSize;
+}
+
+uint32_t
+IoTHeader::GetPayloadSize() const
+{
+  return m_payloadSize;
+}
+
 bool
 IoTHeader::IsValid() const
 {
@@ -121,13 +134,14 @@ IoTHeader::Print(std::ostream& os) const
      << " messageType=" << static_cast<uint32_t>(m_messageType)
      << " sensorId=" << m_sensorId
      << " sequenceNumber=" << m_sequenceNumber
+     << " payloadSize=" << m_payloadSize
      << " timestamp=" << m_timestamp.As(Time::S) << ")";
 }
 
 uint32_t
 IoTHeader::GetSerializedSize() const
 {
-  return 4 + 2 + 1 + 4 + 4 + 8;
+  return 4 + 2 + 1 + 4 + 4 + 4 + 8;
 }
 
 void
@@ -139,6 +153,7 @@ IoTHeader::Serialize(Buffer::Iterator start) const
   i.WriteU8(static_cast<uint8_t>(m_messageType));
   i.WriteHtonU32(m_sensorId);
   i.WriteHtonU32(m_sequenceNumber);
+  i.WriteHtonU32(m_payloadSize);
   i.WriteHtonU64(m_timestamp.GetTimeStep());
 }
 
@@ -151,6 +166,7 @@ IoTHeader::Deserialize(Buffer::Iterator start)
   m_messageType = static_cast<IoTMessageType>(i.ReadU8());
   m_sensorId = i.ReadNtohU32();
   m_sequenceNumber = i.ReadNtohU32();
+  m_payloadSize = i.ReadNtohU32();
   m_timestamp = TimeStep(i.ReadNtohU64());
   return GetSerializedSize();
 }

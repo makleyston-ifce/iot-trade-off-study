@@ -49,6 +49,7 @@ PrintMetrics(uint64_t txPackets,
              uint64_t rxPackets,
              uint64_t lostPackets,
              uint64_t rxBytes,
+             uint64_t usefulRxBytes,
              double throughputKbps,
              double averageDelayMs,
              double averageJitterMs,
@@ -59,7 +60,8 @@ PrintMetrics(uint64_t txPackets,
   std::cout << "RX Packets: " << rxPackets << "\n";
   std::cout << "Lost Packets: " << lostPackets << "\n";
   std::cout << "RX Bytes: " << rxBytes << "\n";
-  std::cout << "Throughput: " << std::fixed << std::setprecision(3) << throughputKbps << " kbps\n";
+  std::cout << "Useful RX Bytes: " << usefulRxBytes << "\n";
+  std::cout << "Useful Throughput: " << std::fixed << std::setprecision(3) << throughputKbps << " kbps\n";
   std::cout << "Average Delay: " << std::fixed << std::setprecision(3) << averageDelayMs << " ms\n";
   std::cout << "Average Jitter: " << std::fixed << std::setprecision(3) << averageJitterMs << " ms\n";
   std::cout << "Simulation CPU Time: " << std::fixed << std::setprecision(3) << cpuTimeSeconds << " s\n";
@@ -253,7 +255,8 @@ main(int argc, char *argv[])
     jitterSum += flow.second.jitterSum;
   }
 
-  double throughputKbps = CalculateThroughput(rxBytes, params.duration);
+  uint64_t applicationRxBytes = gatewayApp->GetTotalApplicationBytesReceived();
+  double throughputKbps = CalculateThroughput(applicationRxBytes, params.duration);
   double averageDelayMs = CalculateAverageDelay(delaySum, rxPackets);
   double averageJitterMs = CalculateAverageJitter(jitterSum, rxPackets);
 
@@ -261,6 +264,7 @@ main(int argc, char *argv[])
                rxPackets,
                lostPackets,
                rxBytes,
+               applicationRxBytes,
                throughputKbps,
                averageDelayMs,
                averageJitterMs,

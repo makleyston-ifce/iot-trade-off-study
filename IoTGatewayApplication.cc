@@ -28,6 +28,7 @@ IoTGatewayApplication::IoTGatewayApplication()
   : m_messagesReceived(0),
     m_messagesLost(0),
     m_delaySumMs(0.0),
+    m_totalApplicationBytesReceived(0),
     m_sensorStates()
 {
 }
@@ -55,6 +56,12 @@ IoTGatewayApplication::GetAverageApplicationDelayMs() const
     return 0.0;
   }
   return m_delaySumMs / static_cast<double>(m_messagesReceived);
+}
+
+uint64_t
+IoTGatewayApplication::GetTotalApplicationBytesReceived() const
+{
+  return m_totalApplicationBytesReceived;
 }
 
 void
@@ -129,6 +136,10 @@ IoTGatewayApplication::HandlePacketTrace(Ptr<const Packet> packet,
     //     << " Seq " << header.GetSequenceNumber()
     //     << std::endl;
 
+    if (header.GetMessageType() != IoTMessageType::DATA) {
+      return;
+    }
+
     uint32_t sensorId = header.GetSensorId();
     uint32_t sequenceNumber = header.GetSequenceNumber();
 
@@ -140,6 +151,7 @@ IoTGatewayApplication::HandlePacketTrace(Ptr<const Packet> packet,
 
     m_messagesReceived++;
     m_delaySumMs += delayMs;
+    m_totalApplicationBytesReceived += header.GetPayloadSize();
 
     UpdateSequenceTracking(sensorId, sequenceNumber);
 }

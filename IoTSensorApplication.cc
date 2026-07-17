@@ -6,6 +6,7 @@
 #include "ns3/internet-module.h"
 #include "ns3/log.h"
 #include "ns3/packet.h"
+#include "ns3/random-variable-stream.h"
 #include "ns3/socket.h"
 #include "ns3/tcp-socket-factory.h"
 #include "ns3/udp-socket-factory.h"
@@ -133,7 +134,12 @@ IoTSensorApplication::StartApplication()
   m_commState = CommunicationState::STARTUP;
   m_dataStarted = false;
 
-  m_startupEvent = Simulator::Schedule(Seconds(0.0), &IoTSensorApplication::SendCommunicationMessage, this);
+  Ptr<UniformRandomVariable> jitter = CreateObject<UniformRandomVariable>();
+  jitter->SetAttribute("Min", DoubleValue(0.0));
+  jitter->SetAttribute("Max", DoubleValue(m_sendInterval.GetSeconds()));
+  Time initialDelay = Seconds(jitter->GetValue());
+
+  m_startupEvent = Simulator::Schedule(initialDelay, &IoTSensorApplication::SendCommunicationMessage, this);
 }
 
 void
@@ -271,7 +277,8 @@ IoTSensorApplication::SendCommunicationMessage()
   CommunicationMessageType message = m_startupMessages[m_startupIndex];
   std::cout << CommunicationMessageTypeToString(message) << std::endl;
 
-  m_totalControlOverheadBytes += GetCommunicationMessageSize(message);
+  uint32_t messageSize = GetCommunicationMessageSize(message);
+  m_totalControlOverheadBytes += messageSize;
   m_cpuModel.ConsumeTransmission();
 
   double protocolCost = 0.0;
@@ -288,7 +295,7 @@ IoTSensorApplication::SendCommunicationMessage()
   }
   m_cpuModel.ConsumeProtocolOperation(protocolCost);
 
-  Ptr<Packet> packet = Create<Packet>();
+  Ptr<Packet> packet = Create<Packet>(messageSize);
   m_socket->Send(packet);
 
   ++m_startupIndex;
@@ -338,6 +345,7 @@ IoTSensorApplication::SendPacket()
   header.SetMessageType(IoTMessageType::DATA);
   header.SetSensorId(static_cast<uint32_t>(GetNode()->GetId()));
   header.SetSequenceNumber(++m_sequenceNumber);
+  header.SetPayloadSize(m_payloadSize);
   header.SetTimestamp(Simulator::Now());
   packet->AddHeader(header);
 
