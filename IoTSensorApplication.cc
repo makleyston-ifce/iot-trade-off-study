@@ -1,5 +1,6 @@
 #include "IoTHeader.h"
 #include "IoTSensorApplication.h"
+#include "SecurityMessage.h"
 
 #include "ns3/core-module.h"
 #include "ns3/internet-module.h"
@@ -102,6 +103,9 @@ IoTSensorApplication::IoTSensorApplication()
     m_messagesSent(0),
     m_totalControlOverheadBytes(0),
     m_totalApplicationOverheadBytes(0),
+    m_totalSecurityOverheadBytes(0),
+    m_totalSecurityMessages(0),
+    m_cpuModel(),
     m_dataStarted(false)
 {
 }
@@ -109,6 +113,27 @@ IoTSensorApplication::IoTSensorApplication()
 IoTSensorApplication::~IoTSensorApplication()
 {
   m_socket = nullptr;
+}
+
+void
+IoTSensorApplication::StartApplication()
+{
+  if (!m_socket) {
+    TypeId socketType = m_profile.usesTcp ? TcpSocketFactory::GetTypeId() : UdpSocketFactory::GetTypeId();
+    m_socket = Socket::CreateSocket(GetNode(), socketType);
+    if (!m_socket) {
+      NS_LOG_ERROR("IoTSensorApplication failed to create socket");
+      return;
+    }
+    m_socket->Connect(m_peerAddress);
+  }
+
+  m_startupMessages = m_profile.startupMessages;
+  m_startupIndex = 0;
+  m_commState = CommunicationState::STARTUP;
+  m_dataStarted = false;
+
+  m_startupEvent = Simulator::Schedule(Seconds(0.0), &IoTSensorApplication::SendCommunicationMessage, this);
 }
 
 void
@@ -165,46 +190,36 @@ IoTSensorApplication::GetTotalApplicationOverheadBytes() const
   return m_totalApplicationOverheadBytes;
 }
 
-// void
-// IoTSensorApplication::StartApplication()
-// {
-//   if (!m_socket) {
-//     m_socket = Socket::CreateSocket(GetNode(), UdpSocketFactory::GetTypeId());
-//     m_socket->Connect(m_peerAddress);
-//   }
-
-//   ScheduleNextSend();
-// }
-
-void
-IoTSensorApplication::StartApplication()
+uint64_t
+IoTSensorApplication::GetTotalSecurityOverheadBytes() const
 {
-    if (!m_socket)
-    {
-        TypeId socketFactory = m_profile.usesTcp ? TcpSocketFactory::GetTypeId()
-                                                 : UdpSocketFactory::GetTypeId();
-        m_socket = Socket::CreateSocket(GetNode(), socketFactory);
-        m_socket->Connect(m_peerAddress);
-    }
-
-    if (!m_profile.startupMessages.empty()) {
-        m_commState = CommunicationState::STARTUP;
-        m_startupMessages = m_profile.startupMessages;
-        m_startupIndex = 0;
-        SendCommunicationMessage();
-        return;
-    }
-
-    if (m_securityProfile.protocol == SecurityProtocol::NONE) {
-        m_securityState = SecurityState::ESTABLISHED;
-        m_dataStarted = true;
-        std::cout << "Sending IoT data" << std::endl;
-        SendPacket();
-        return;
-    }
-
-    StartSecurityHandshake();
+  return m_totalSecurityOverheadBytes;
 }
+
+uint32_t
+IoTSensorApplication::GetTotalSecurityMessages() const
+{
+  return m_totalSecurityMessages;
+}
+
+double
+IoTSensorApplication::GetCpuConsumed() const
+{
+  return m_cpuModel.GetCpuConsumed();
+}
+
+double
+IoTSensorApplication::GetProtocolCpuCost() const
+{
+  return m_cpuModel.GetProtocolCost();
+}
+
+double
+IoTSensorApplication::GetSecurityCpuCost() const
+{
+  return m_cpuModel.GetSecurityCost();
+}
+
 
 void
 IoTSensorApplication::StopApplication()
@@ -257,6 +272,21 @@ IoTSensorApplication::SendCommunicationMessage()
   std::cout << CommunicationMessageTypeToString(message) << std::endl;
 
   m_totalControlOverheadBytes += GetCommunicationMessageSize(message);
+  m_cpuModel.ConsumeTransmission();
+
+  double protocolCost = 0.0;
+  switch (m_profile.protocol) {
+  case CommunicationProtocol::MQTT:
+    protocolCost = CpuProfile().mqttCost;
+    break;
+  case CommunicationProtocol::COAP:
+    protocolCost = CpuProfile().coapCost;
+    break;
+  case CommunicationProtocol::AMQP:
+    protocolCost = CpuProfile().amqpCost;
+    break;
+  }
+  m_cpuModel.ConsumeProtocolOperation(protocolCost);
 
   Ptr<Packet> packet = Create<Packet>();
   m_socket->Send(packet);
@@ -272,8 +302,34 @@ IoTSensorApplication::SendPacket()
     return;
   }
 
-  uint32_t packetSize = m_payloadSize + m_profile.applicationHeaderBytes;
+  uint32_t securityOverhead = (m_securityProfile.protocol == SecurityProtocol::NONE)
+                                  ? 0u
+                                  : TLS_APPLICATION_DATA_OVERHEAD;
+  uint32_t packetSize = m_payloadSize + m_profile.applicationHeaderBytes + securityOverhead;
   m_totalApplicationOverheadBytes += m_profile.applicationHeaderBytes;
+  m_totalSecurityOverheadBytes += securityOverhead;
+  m_cpuModel.ConsumeTransmission();
+
+  double protocolCost = 0.0;
+  switch (m_profile.protocol) {
+  case CommunicationProtocol::MQTT:
+    protocolCost = CpuProfile().mqttCost;
+    break;
+  case CommunicationProtocol::COAP:
+    protocolCost = CpuProfile().coapCost;
+    break;
+  case CommunicationProtocol::AMQP:
+    protocolCost = CpuProfile().amqpCost;
+    break;
+  }
+  m_cpuModel.ConsumeProtocolOperation(protocolCost);
+
+  if (m_securityProfile.protocol == SecurityProtocol::TLS) {
+    m_cpuModel.ConsumeSecurityOperation(CpuProfile().tlsCost);
+  } else if (m_securityProfile.protocol == SecurityProtocol::MTLS) {
+    m_cpuModel.ConsumeSecurityOperation(CpuProfile().mtlsCost);
+  }
+
   Ptr<Packet> packet = Create<Packet>(packetSize);
 
   IoTHeader header;
@@ -295,23 +351,8 @@ IoTSensorApplication::StartSecurityHandshake()
 {
   m_securityState = SecurityState::HANDSHAKE;
   m_securityMessageIndex = 0;
-  m_handshakeMessages.clear();
-
-  if (m_securityProfile.protocol == SecurityProtocol::TLS) {
-    m_handshakeMessages = {
-      SecurityMessageType::CLIENT_HELLO,
-      SecurityMessageType::SERVER_HELLO,
-      SecurityMessageType::CERTIFICATE,
-      SecurityMessageType::FINISHED};
-  } else if (m_securityProfile.protocol == SecurityProtocol::MTLS) {
-    m_handshakeMessages = {
-      SecurityMessageType::CLIENT_HELLO,
-      SecurityMessageType::SERVER_HELLO,
-      SecurityMessageType::CERTIFICATE,
-      SecurityMessageType::CERTIFICATE_REQUEST,
-      SecurityMessageType::CLIENT_CERTIFICATE,
-      SecurityMessageType::FINISHED};
-  }
+  m_handshakeMessages = m_securityProfile.GetHandshakeMessages();
+  m_totalSecurityMessages = 0;
 
   std::cout << "Security handshake started" << std::endl;
   SendSecurityMessage();
@@ -325,35 +366,20 @@ IoTSensorApplication::SendSecurityMessage()
     return;
   }
 
-  SecurityMessageType message = m_handshakeMessages[m_securityMessageIndex];
-  bool isSent = (message == SecurityMessageType::CLIENT_HELLO ||
-                 message == SecurityMessageType::CLIENT_CERTIFICATE ||
-                 message == SecurityMessageType::FINISHED);
+  const SecurityMessage& message = m_handshakeMessages[m_securityMessageIndex];
+  std::cout << "[" << SecurityProtocolToString(m_securityProfile.protocol) << "] "
+            << message.name << std::endl;
 
-  std::string name;
-  switch (message) {
-  case SecurityMessageType::CLIENT_HELLO:
-    name = "CLIENT_HELLO";
-    break;
-  case SecurityMessageType::SERVER_HELLO:
-    name = "SERVER_HELLO";
-    break;
-  case SecurityMessageType::CERTIFICATE:
-    name = "CERTIFICATE";
-    break;
-  case SecurityMessageType::CERTIFICATE_REQUEST:
-    name = "CERTIFICATE_REQUEST";
-    break;
-  case SecurityMessageType::CLIENT_CERTIFICATE:
-    name = "CLIENT_CERTIFICATE";
-    break;
-  case SecurityMessageType::FINISHED:
-    name = "FINISHED";
-    break;
-  }
+  m_totalSecurityOverheadBytes += message.headerSize;
+  m_totalSecurityMessages += 1;
+  m_cpuModel.ConsumeTransmission();
 
-  std::cout << name << " " << (isSent ? "sent" : "received") << std::endl;
-  Ptr<Packet> packet = Create<Packet>(16);
+  double securityCost = (m_securityProfile.protocol == SecurityProtocol::MTLS)
+                            ? CpuProfile().mtlsCost
+                            : CpuProfile().tlsCost;
+  m_cpuModel.ConsumeSecurityOperation(securityCost);
+
+  Ptr<Packet> packet = Create<Packet>(message.headerSize);
   m_socket->Send(packet);
 
   m_securityMessageIndex++;

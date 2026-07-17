@@ -10,6 +10,8 @@
 #include <vector>
 
 #include "CommunicationProfile.h"
+#include "CpuModel.h"
+#include "CpuProfile.h"
 #include "SecurityProfile.h"
 
 namespace ns3 {
@@ -18,15 +20,6 @@ enum class SecurityState {
   DISABLED,
   HANDSHAKE,
   ESTABLISHED
-};
-
-enum class SecurityMessageType {
-  CLIENT_HELLO,
-  SERVER_HELLO,
-  CERTIFICATE,
-  CERTIFICATE_REQUEST,
-  CLIENT_CERTIFICATE,
-  FINISHED
 };
 
 enum class CommunicationState {
@@ -51,6 +44,11 @@ public:
   uint64_t GetMessagesSent() const;
   uint64_t GetTotalControlOverheadBytes() const;
   uint64_t GetTotalApplicationOverheadBytes() const;
+  uint64_t GetTotalSecurityOverheadBytes() const;
+  uint32_t GetTotalSecurityMessages() const;
+  double GetCpuConsumed() const;
+  double GetProtocolCpuCost() const;
+  double GetSecurityCpuCost() const;
 
 private:
   virtual void StartApplication() override;
@@ -74,7 +72,7 @@ private:
   SecurityProfile m_securityProfile;
   SecurityState m_securityState;
   uint32_t m_securityMessageIndex;
-  std::vector<SecurityMessageType> m_handshakeMessages;
+  std::vector<SecurityMessage> m_handshakeMessages;
   CommunicationState m_commState;
   std::vector<CommunicationMessageType> m_startupMessages;
   uint32_t m_startupIndex;
@@ -82,6 +80,9 @@ private:
   uint64_t m_messagesSent;
   uint64_t m_totalControlOverheadBytes;
   uint64_t m_totalApplicationOverheadBytes;
+  uint64_t m_totalSecurityOverheadBytes;
+  uint32_t m_totalSecurityMessages;
+  CpuModel m_cpuModel;
   bool m_dataStarted;
 };
 

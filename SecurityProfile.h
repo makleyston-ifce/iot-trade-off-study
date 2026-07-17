@@ -3,6 +3,9 @@
 
 #include <stdexcept>
 #include <string>
+#include <vector>
+
+#include "SecurityMessage.h"
 
 namespace ns3 {
 
@@ -16,6 +19,8 @@ struct SecurityProfile {
   SecurityProtocol protocol = SecurityProtocol::NONE;
   bool requiresHandshake = false;
   bool mutualAuthentication = false;
+
+  std::vector<SecurityMessage> GetHandshakeMessages() const;
 };
 
 inline SecurityProfile
@@ -42,6 +47,37 @@ GetSecurityProfile(SecurityProtocol protocol)
   }
 
   return profile;
+}
+
+inline std::vector<SecurityMessage>
+SecurityProfile::GetHandshakeMessages() const
+{
+  switch (protocol) {
+  case SecurityProtocol::TLS:
+    return {
+      {SecurityMessageType::CLIENT_HELLO, TLS_CLIENT_HELLO_SIZE, false, "CLIENT_HELLO"},
+      {SecurityMessageType::SERVER_HELLO, TLS_SERVER_HELLO_SIZE, false, "SERVER_HELLO"},
+      {SecurityMessageType::ENCRYPTED_EXTENSIONS, TLS_ENCRYPTED_EXTENSIONS_SIZE, false, "ENCRYPTED_EXTENSIONS"},
+      {SecurityMessageType::CERTIFICATE, TLS_CERTIFICATE_SIZE, false, "CERTIFICATE"},
+      {SecurityMessageType::CERTIFICATE_VERIFY, TLS_CERTIFICATE_VERIFY_SIZE, false, "CERTIFICATE_VERIFY"},
+      {SecurityMessageType::FINISHED, TLS_FINISHED_SIZE, false, "FINISHED"}
+    };
+  case SecurityProtocol::MTLS:
+    return {
+      {SecurityMessageType::CLIENT_HELLO, TLS_CLIENT_HELLO_SIZE, false, "CLIENT_HELLO"},
+      {SecurityMessageType::SERVER_HELLO, TLS_SERVER_HELLO_SIZE, false, "SERVER_HELLO"},
+      {SecurityMessageType::ENCRYPTED_EXTENSIONS, TLS_ENCRYPTED_EXTENSIONS_SIZE, false, "ENCRYPTED_EXTENSIONS"},
+      {SecurityMessageType::CERTIFICATE, TLS_CERTIFICATE_SIZE, false, "CERTIFICATE"},
+      {SecurityMessageType::CERTIFICATE_REQUEST, TLS_CERTIFICATE_REQUEST_SIZE, false, "CERTIFICATE_REQUEST"},
+      {SecurityMessageType::CLIENT_CERTIFICATE, TLS_CLIENT_CERTIFICATE_SIZE, false, "CLIENT_CERTIFICATE"},
+      {SecurityMessageType::CERTIFICATE_VERIFY, TLS_CERTIFICATE_VERIFY_SIZE, false, "CERTIFICATE_VERIFY"},
+      {SecurityMessageType::FINISHED, TLS_FINISHED_SIZE, false, "FINISHED"}
+    };
+  case SecurityProtocol::NONE:
+    return {};
+  default:
+    throw std::invalid_argument("Unsupported SecurityProtocol");
+  }
 }
 
 inline std::string

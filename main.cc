@@ -124,6 +124,7 @@ main(int argc, char *argv[])
   std::cout << "Final Packet Size: " << (params.payload + profile.applicationHeaderBytes) << " bytes\n";
   std::cout << "Protocol Control Overhead: " << GetProtocolControlOverheadBytes(profile) << " bytes\n";
   std::cout << "Application Message Overhead: " << GetApplicationMessageOverheadBytes(profile) << " bytes\n";
+  std::cout << "Security Handshake Messages: " << securityProfile.GetHandshakeMessages().size() << "\n";
 
   NodeContainer gatewayNode;
   gatewayNode.Create(1);
@@ -174,7 +175,8 @@ main(int argc, char *argv[])
   stack.Install(sensorNodes);
 
   Ipv4AddressHelper address;
-  address.SetBase("10.1.1.0", "255.255.255.0");
+  // Use a /22 network block aligned to the network boundary for up to 800 devices.
+  address.SetBase("10.1.0.0", "255.255.252.0");
   Ipv4InterfaceContainer sensorInterfaces = address.Assign(sensorDevices);
   Ipv4InterfaceContainer gatewayInterface = address.Assign(gatewayDevice);
 
@@ -260,10 +262,20 @@ main(int argc, char *argv[])
                cpuTimeSeconds);
 
   uint64_t totalMessagesSent = 0;
+  uint64_t totalSecurityOverheadBytes = 0;
+  uint64_t totalSecurityMessages = 0;
+  double totalCpuConsumed = 0.0;
+  double totalProtocolCpuCost = 0.0;
+  double totalSecurityCpuCost = 0.0;
   for (uint32_t i = 0; i < sensorApps.GetN(); ++i) {
     Ptr<IoTSensorApplication> sensorApp = DynamicCast<IoTSensorApplication>(sensorApps.Get(i));
     if (sensorApp) {
       totalMessagesSent += sensorApp->GetMessagesSent();
+      totalSecurityOverheadBytes += sensorApp->GetTotalSecurityOverheadBytes();
+      totalSecurityMessages += sensorApp->GetTotalSecurityMessages();
+      totalCpuConsumed += sensorApp->GetCpuConsumed();
+      totalProtocolCpuCost += sensorApp->GetProtocolCpuCost();
+      totalSecurityCpuCost += sensorApp->GetSecurityCpuCost();
     }
   }
 
@@ -277,6 +289,17 @@ main(int argc, char *argv[])
   std::cout << "Messages Lost: " << applicationMessagesLost << "\n";
   std::cout << "Average Application Delay: " << std::fixed << std::setprecision(3)
             << averageAppDelayMs << " ms\n";
+  std::cout << "Security Overhead Bytes: " << totalSecurityOverheadBytes << " bytes\n";
+  std::cout << "Security Handshake Messages: " << totalSecurityMessages << "\n";
+  std::cout << "\n========== CPU METRICS ==========\n";
+  std::cout << "Transmission Cost: " << std::fixed << std::setprecision(3)
+            << totalCpuConsumed << "\n";
+  std::cout << "Protocol Cost: " << std::fixed << std::setprecision(3)
+            << totalProtocolCpuCost << "\n";
+  std::cout << "Security Cost: " << std::fixed << std::setprecision(3)
+            << totalSecurityCpuCost << "\n";
+  std::cout << "Total CPU Cost: " << std::fixed << std::setprecision(3)
+            << totalCpuConsumed << "\n";
 
   Simulator::Destroy();
 
