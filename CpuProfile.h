@@ -4,18 +4,18 @@
 namespace ns3 {
 
 struct CpuProfile {
-  // PLACEHOLDER values for abstract CPU cost coefficients.
-  // These will be calibrated later using literature or experimental data.
+  // CPU cost coefficients are not calibrated in this model.
+  // The current implementation does not report CPU cost metrics.
 
-  double transmissionCost = 1.0; // PLACEHOLDER: cost per transmit operation.
-  double receptionCost = 0.5;    // PLACEHOLDER: cost per receive operation.
+  double transmissionCost = 0.0;
+  double receptionCost = 0.0;
 
-  double mqttCost = 1.2;  // PLACEHOLDER: cost per MQTT protocol operation.
-  double coapCost = 0.9;  // PLACEHOLDER: cost per CoAP protocol operation.
-  double amqpCost = 1.5;  // PLACEHOLDER: cost per AMQP protocol operation.
+  double mqttCost = 0.0;
+  double coapCost = 0.0;
+  double amqpCost = 0.0;
 
-  double tlsCost = 2.0;   // PLACEHOLDER: cost per TLS security operation.
-  double mtlsCost = 2.5;  // PLACEHOLDER: cost per mTLS security operation.
+  double tlsCost = 0.0;
+  double mtlsCost = 0.0;
 };
 
 } // namespace ns3

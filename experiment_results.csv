@@ -1,3 +1,5 @@
-Protocol,Security,Nodes,DurationSeconds,PayloadBytes,TXPackets,RXPackets,LostPackets,RXBytes,ThroughputKbps,AverageDelayMs,AverageJitterMs,SimulationCpuTimeS,MessagesSent,MessagesReceived,MessagesLost,AverageAppDelayMs,SecurityOverheadBytes,SecurityHandshakeMessages,TransmissionCost,ProtocolCost,SecurityCost,TotalCpuCost
-COAP,MTLS,10,300,256,3100,3100,0,1032240,27.526,24.457,12.976,7.251,3000,3000,0,22.974,96440,80,10418.0,2718.0,7700.0,10418.0
-COAP,TLS,20,300,256,6160,6151,9,2035220,54.273,46.353,25.66,24.755,6000,5999,0,43.741,167600,120,17676.0,5436.0,12240.0,17676.0
+Protocol,Security,Nodes,DurationSeconds,PayloadBytes,TXPackets,RXPackets,LostPackets,RXBytes,ThroughputKbps,AverageDelayMs,AverageJitterMs,SimulationCpuTimeS,MessagesSent,MessagesReceived,MessagesLost,AverageAppDelayMs,SecurityOverheadBytes,SecurityHandshakeMessages,Seed
+AMQP,NONE,5,300,256,3030,3030,0,600100,16.003,7.578,3.413,3.461,1500,1500,0,14.779,0,0,1
+MQTT,MTLS,5,300,256,3120,3120,0,641000,17.093,7.737,3.371,3.664,1500,1500,0,14.343,48220,40,2
+AMQP,MTLS,5,300,256,3107,3107,0,652324,17.395,7.615,3.474,4.362,1500,1499,0,14.108,48220,40,3
+AMQP,MTLS,10,300,256,6235,6235,0,1305740,34.82,16.112,7.934,9.68,3000,3000,0,24.62,96440,80,4

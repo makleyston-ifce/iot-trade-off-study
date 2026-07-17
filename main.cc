@@ -71,13 +71,18 @@ main(int argc, char *argv[])
   ScenarioParameters params;
   std::string protocolString = "MQTT";
   std::string securityString = "NONE";
+  uint32_t rngSeed = 1;
   CommandLine cmd;
   cmd.AddValue("nodes", "Number of sensor nodes", params.nodes);
   cmd.AddValue("duration", "Simulation duration in seconds", params.duration);
   cmd.AddValue("payload", "UDP payload size in bytes", params.payload);
   cmd.AddValue("protocol", "Communication protocol to model (MQTT, COAP, AMQP)", protocolString);
   cmd.AddValue("security", "Security protocol to model (NONE, TLS, MTLS)", securityString);
+  cmd.AddValue("seed", "Random seed for NS-3 RNG", rngSeed);
   cmd.Parse(argc, argv);
+
+  RngSeedManager::SetSeed(rngSeed);
+  RngSeedManager::SetRun(1);
 
   CommunicationProtocol protocol = CommunicationProtocol::MQTT;
   if (protocolString == "MQTT") {

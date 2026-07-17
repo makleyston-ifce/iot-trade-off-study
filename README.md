@@ -55,10 +55,7 @@ O script `run_experiments.py` invoca o executável compilado, parseia seu stdout
 
 ### Métricas de CPU e custo de operação
 
-- `Transmission Cost`: soma de `CpuModel::ConsumeTransmission()` para cada envio de pacote ou mensagem de controle. Usa `CpuProfile::transmissionCost` como coeficiente padrão.
-- `Protocol Cost`: soma do custo de operações de protocolo em `CpuModel::ConsumeProtocolOperation()`. O valor depende do protocolo (`mqttCost`, `coapCost`, `amqpCost`).
-- `Security Cost`: soma de `CpuModel::ConsumeSecurityOperation()` para cada operação de segurança TLS/MTLS.
-- `Total CPU Cost`: soma de todas as adições em `CpuModel::m_cpuConsumed`, ou seja, custo de transmissão + custo de protocolo + custo de segurança acumulado pelo sensor.
+O projeto contém uma modelagem interna de custo de CPU, mas os coeficientes de custo não estão calibrados para hardware real. Por isso, os resultados atuais não expõem métricas de custo de CPU derivadas dessa modelagem.
 
 ## Como rodar o experimento
 
@@ -67,7 +64,7 @@ O script `run_experiments.py` espera que o binário NS-3 esteja disponível em `
 Exemplo de execução manual:
 
 ```bash
-cd /home/makleyston/Projects/ns-3-dev/scratch/iot-study
+cd /ns-3-dev/scratch/iot-study
 python3 run_experiments.py
 ```
 
@@ -80,16 +77,17 @@ Se a compilação não existir, o script lança `FileNotFoundError` e informa o 
 - `--nodes`: número de nós sensores. No `run_experiments.py`, atualmente o conjunto de testes usa `5, 10, 20` para execuções de validação rápidas; o código de cenário usa `ScenarioParameters::nodes`, que por padrão é `200`.
 - `--duration`: duração da simulação em segundos. O código padrão usa `300.0`.
 - `--payload`: tamanho do payload UDP em bytes. O padrão é `256`.
+- `--seed`: valor inteiro que controla o gerador de números aleatórios do NS-3. O script `run_experiments.py` atribui um valor diferente a cada execução.
 
 ## Limitações e escopo de validade
 
-- Os valores de `CpuProfile` são marcados como `PLACEHOLDER` no código. Eles não vêm de medição de hardware real e apenas modelam um custo abstrato de CPU por operação.
-- `CommunicationMessageSizes.h` define todos os tamanhos de mensagem de controle como `0`. Isso significa que qualquer cálculo de overhead de controle de protocolo baseado nesses constantes não reflete um tamanho real de pacotes de handshake de MQTT, CoAP ou AMQP.
+- O modelo de custo de CPU presente no código não está calibrado para hardware real e não é usado como métrica de análise nos resultados atuais.
+- Os valores em `CommunicationMessageSizes.h` não são validados contra formatos completos de pacote de MQTT, CoAP ou AMQP; o cálculo de overhead de controle é um valor de modelo.
 - A simulação usa Wi-Fi 802.11g com um único AP e posições fixas; não há mobilidade dinâmica nem múltiplos canais.
 - A métrica `Messages Lost` no gateway é inferida por sequência de pacotes faltantes e pode não corresponder a perdas reais em cenários com retransmissões ou reordenação.
 - `Simulation CPU Time` mede duração de execução no host e não é um indicador direto de carga de CPU por nó simulado ou de performance do protocolo em hardware real.
 - Não há repetição estatística automática de experimentos. Cada linha de `experiment_results.csv` representa apenas uma execução de configuração específica. Isso impede inferências robustas sobre variabilidade ou intervalos de confiança.
-- O `run_experiments.py` grava combinações de protocolo, segurança e número de nós em ordem aleatória, mas não adiciona ruído de variação de semeadura determinística ou execuções repetidas. Portanto, os dados são válidos apenas como uma amostra de resultado de configuração única.
+- O `run_experiments.py` grava combinações de protocolo, segurança e número de nós em ordem aleatória e passa uma semente de simulação explícita ao NS-3. A variação de cada execução depende dos processos aleatórios internos do NS-3, como o backoff do Wi-Fi, mas cada linha ainda identifica apenas uma única semente de simulação.
 - A topologia modelada contém apenas um gateway e não representa arquiteturas distribuídas de borda ou múltiplos servidores.
 - A implementação de TLS/MTLS considera mensagens de handshake e overhead de aplicação, mas não inclui validação de certificados, renegociação, re-transmissão de handshake ou o custo real de cifragem em bibliotecas de criptografia reais.
 

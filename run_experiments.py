@@ -27,7 +27,7 @@ OUTPUT_CSV = SCRIPT_DIR / "experiment_results.csv"
 
 PROTOCOLS = ["MQTT", "COAP", "AMQP"]
 SECURITIES = ["NONE", "TLS", "MTLS"]
-NODE_COUNTS = [5, 10, 20]  # Reduced node counts for quicker testing; adjust as needed
+NODE_COUNTS = [100, 200, 400]  # Reduced node counts for quicker testing; adjust as needed
 
 METRIC_PATTERNS = {
     "Protocol": re.compile(r"^Protocol:\s*(.*)$"),
@@ -49,10 +49,6 @@ METRIC_PATTERNS = {
     "Average Application Delay": re.compile(r"^Average Application Delay:\s*([0-9.eE+-]+) ms$"),
     "Security Overhead Bytes": re.compile(r"^Security Overhead Bytes:\s*(\d+) bytes$"),
     "Security Handshake Messages": re.compile(r"^Security Handshake Messages:\s*(\d+)$"),
-    "Transmission Cost": re.compile(r"^Transmission Cost:\s*([0-9.eE+-]+)$"),
-    "Protocol Cost": re.compile(r"^Protocol Cost:\s*([0-9.eE+-]+)$"),
-    "Security Cost": re.compile(r"^Security Cost:\s*([0-9.eE+-]+)$"),
-    "Total CPU Cost": re.compile(r"^Total CPU Cost:\s*([0-9.eE+-]+)$"),
 }
 
 CSV_FIELDS = [
@@ -75,10 +71,7 @@ CSV_FIELDS = [
     "AverageAppDelayMs",
     "SecurityOverheadBytes",
     "SecurityHandshakeMessages",
-    "TransmissionCost",
-    "ProtocolCost",
-    "SecurityCost",
-    "TotalCpuCost",
+    "Seed",
 ]
 
 
@@ -148,12 +141,13 @@ def parse_output(output: str) -> dict:
     return result
 
 
-def run_experiment(executable: Path, protocol: str, security: str, nodes: int) -> dict:
+def run_experiment(executable: Path, protocol: str, security: str, nodes: int, seed: int) -> dict:
     command = [
         str(executable),
         f"--protocol={protocol}",
         f"--security={security}",
         f"--nodes={nodes}",
+        f"--seed={seed}",
     ]
     completed = subprocess.run(
         command,
@@ -173,6 +167,7 @@ def run_experiment(executable: Path, protocol: str, security: str, nodes: int) -
     result["Protocol"] = protocol
     result["Security"] = security
     result["Nodes"] = nodes
+    result["Seed"] = seed
     return result
 
 
@@ -192,8 +187,9 @@ def main() -> None:
         writer.writeheader()
 
         for index, (protocol, security, nodes) in enumerate(experiments, start=1):
-            print(f"Running {index}/{len(experiments)}: protocol={protocol}, security={security}, nodes={nodes}")
-            result = run_experiment(executable, protocol, security, nodes)
+            seed = index
+            print(f"Running {index}/{len(experiments)}: protocol={protocol}, security={security}, nodes={nodes}, seed={seed}")
+            result = run_experiment(executable, protocol, security, nodes, seed)
             row = {field: result.get(field, "") for field in CSV_FIELDS}
             writer.writerow(row)
             print(f"  -> done, wrote row for {protocol}/{security}/{nodes}\n")
